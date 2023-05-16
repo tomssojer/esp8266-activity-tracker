@@ -51,13 +51,15 @@ void I2CReadRegister(uint8_t I2CDevice, uint8_t RegAdress, uint8_t NBytes, uint8
 #define READ_NO 10
 // Total array length
 #define TOTAL_COUNT 50
-
+//CASOVNI KORAK BELEZENJA
+#define TIME_STEP 40
 uint8_t LED_niz[4] = {0xfe, 0xfd, 0xfb, 0xf7}; // led diode
 uint8_t LED_niz1[2] = {0xfe, 0xff};
 #define I2C_ADD_IO1 32
 
 // Count to 50, then reset
 uint32_t write_count = 0;
+uint8_t totalSteps = 0;
 float x_acc_array[TOTAL_COUNT];
 float y_acc_array[TOTAL_COUNT];
 float z_acc_array[TOTAL_COUNT];
@@ -221,16 +223,18 @@ void readACC()
   {
     // Obdelaj podatke
     float *highest_acc = eq.get_highest_acc(x_acc_array, y_acc_array, z_acc_array);
-    int steps = eq.calc_steps(highest_acc);
+    int steps = eq.calc_steps(highest_acc,TIME_STEP);
+    totalSteps+=steps;
     float avg_speed = eq.calc_speed(steps);
+     Serial.println("....................................................");
+     Serial.println(totalSteps);
+     write_count = 0;
   }
-  write_count = 0;
-
   // Dodaj trenutni count v array
   x_acc_array[write_count] = accX;
   y_acc_array[write_count] = accY;
   z_acc_array[write_count] = accZ;
-  write_count++;
+  
 
   // števec
   count = count + 1;

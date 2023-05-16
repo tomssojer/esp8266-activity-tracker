@@ -41,6 +41,7 @@ public:
     int calc_steps(float *data,int time)
     {
         int steps = 0;
+        //Serial.println("Func call");
         // float *averaged_data = smoothen_signal(data);
         float treshold = dynamic_treshold(data);
         float time1=0;
@@ -49,11 +50,13 @@ public:
             float sample_old = data[i];
             float sample_new = data[i + 1];
             // Add a step when the new data is smaller than old and compared to treshold
-            if (sample_new < sample_old && treshold < sample_old && sample_new < treshold)
-              time1 = i*time -time1
+            if (sample_new < sample_old && treshold < sample_old && sample_new < treshold) {
+              //Serial.println("step");
+              time1 = i*time -time1;
               if(time1 > 20 && time1 < 2000 ) { //TO -DO NAPAKA PRI ZAZNAVI ZARADI OKEN UPOŠTEVAJ |----.|.----| KJER JE | OKNO, . KORAK, - NIC
                 steps++;
               }
+            }
         }
 
         return steps;
