@@ -13,9 +13,8 @@ class Equation
 {
 public:
     // Returns the array of accelerations with the highest values
-    float *get_biggest_acc(float *x_dir, float *y_dir, float *z_dir)
+    float *get_highest_acc(float *x_dir, float *y_dir, float *z_dir)
     {
-
         int x, y, z;
         for (int i = 0; i < sizeof(x_dir); i++)
         {
@@ -122,10 +121,11 @@ private:
         // intervals je tabela casov med 2 korakoma
         for (int i = 1; i < steps; i++)
         {
-          float razlika_korakov = intervals[i] - intervals[i-1];
-          if(razlika_korakov < 0.2 || razlika_korakov > 2) {
-            steps--;
-          }
+            float razlika_korakov = intervals[i] - intervals[i - 1];
+            if (razlika_korakov < 0.2 || razlika_korakov > 2)
+            {
+                steps--;
+            }
         }
 
         return steps;
