@@ -119,9 +119,14 @@ private:
     int filter_steps(int steps, float *intervals)
     {
         // Filter data if the interval is less than 0.2s and more than 2s
-        // for (int i = 0; i < steps; i++)
-        // {
-        // }
+        // intervals je tabela casov med 2 korakoma
+        for (int i = 1; i < steps; i++)
+        {
+          float razlika_korakov = intervals[i] - intervals[i-1];
+          if(razlika_korakov < 0.2 || razlika_korakov > 2) {
+            steps--;
+          }
+        }
 
         return steps;
     }
