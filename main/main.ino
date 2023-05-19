@@ -47,18 +47,19 @@ void I2CReadRegister(uint8_t I2CDevice, uint8_t RegAdress, uint8_t NBytes, uint8
 // Naslov registra za pospesek
 #define ACC_MEAS_REG 59
 #define delilnik 16384.0f
-#define RATE 50
+
 // Stevilo uzorcev za kalibracijo
-#define CAL_NO 100
-// Stevilo vzorcev za branje
-#define READ_NO 10
+#define CAL_NO 5.0f
+
 // Total array length
 #define TOTAL_COUNT 50
 // CASOVNI KORAK BELEZENJA
 #define TIME_STEP 40
+
+#define I2C_ADD_IO1 32
+
 uint8_t LED_niz[4] = {0xfe, 0xfd, 0xfb, 0xf7}; // led diode
 uint8_t LED_niz1[2] = {0xfe, 0xff};
-#define I2C_ADD_IO1 32
 
 // Count to 50, then reset
 uint8_t write_count = 0;
@@ -84,8 +85,6 @@ float accZ_off = 0;
 float accX = 0;
 float accY = 0;
 float accZ = 0;
-
-u_int32_t counter = 0;
 
 void MPU9250_init()
 {
@@ -127,7 +126,7 @@ void calibrateACC()
 
   delay(1000);
 
-  int32_t table;
+  int32_t table = 0;
 
   for (int i = 0; i < CAL_NO; i++)
   {
@@ -150,7 +149,7 @@ void calibrateACC()
     table += (uint8_t)Wire.read();
     accZ_off += (table / delilnik);
 
-    delay(1000 / RATE);
+    delay(1000 / CAL_NO);
   }
   Serial.println("\n Konec kalibracije");
 
@@ -169,7 +168,7 @@ void readACC()
 {
   static uint32_t count = 0;
   digitalWrite(PIN_LED, 0);
-  int32_t table;
+  int32_t table = 0; // mogoce pusti brez
 
   //**** MPU-9250
   //**** Naslov registra
@@ -207,18 +206,14 @@ void readACC()
   {
     // Obdelaj podatke
     float *highest_acc = eq.get_highest_acc(x_acc_array, y_acc_array, z_acc_array);
-
-    // for (int i = 0; i < TOTAL_COUNT; i++)
-    //   printf("%f ", highest_acc[i]);
-    // Serial.println("\n");
+    // float *magnitude = eq.get_magnitude(x_acc_array, y_acc_array, z_acc_array); // returnes smooteth magnitudes
 
     uint8_t steps = eq.calc_steps(highest_acc, TIME_STEP);
     totalSteps += steps;
     float avg_speed = eq.calc_speed(steps);
+    // Serial.println(avg_speed);
     Serial.println("....................................................");
     Serial.println(totalSteps);
-    Serial.println("Counter:");
-    Serial.println(counter);
 
     write_count = 0;
     // Izpišemo
@@ -231,27 +226,18 @@ void readACC()
     Serial.print("ACC_Z: Z= ");
     Serial.print(accZ * 9.81);
     Serial.println("\n");
-    accX = 0;
+
     // resetiramo vrednost
     // accX = 0;
     // accY = 0;
     // accZ = 0;
+    // free(magnitude);
   }
-
-  /*
-
-    Konec if stavka
-
-  */
-
   // Dodaj trenutni count v array
-  // Serial.printf("write c %d\n", write_count);
   x_acc_array[write_count] = accX;
   y_acc_array[write_count] = accY;
   z_acc_array[write_count] = accZ;
-
   // števec
-  counter++;
   write_count++;
   digitalWrite(PIN_LED, 1);
 }
@@ -284,14 +270,14 @@ void setup()
   MPU9250_init();
 
   // Določi velikost arraya za interval pospeška pri korakih
-  eq.setSize(TOTAL_COUNT);
+  // eq.setSize(TOTAL_COUNT);
 
   // Kalibracija
   Serial.println("Kalibracijo pospeskometra zacenjam cez 5 sec.");
   Serial.println("Prosim postavite napravo na ravnino in jo pustite na miru.");
   tickLED.attach_ms(1100, utripLED);
 
-  delay(5000);
+  delay(500);       // to do 5000
   tickLED.detach(); // Izklopite Ticker
   tickLED.attach_ms(200, utripLED);
 

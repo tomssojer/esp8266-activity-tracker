@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <float.h>
+#include <math.h>
 
 #define HEIGHT 180
 #define WEIGHT 80
+#define SIZE 50
 
 /*
     If the changes in acceleration are too small, the step counter will discard them
@@ -13,13 +15,13 @@
 class Equation
 {
 public:
-    int SIZE;
+    // int SIZE;
 
-    void setSize(int size)
-    {
-        SIZE = size;
-        printf("Size: %d\n", SIZE);
-    }
+    // void setSize(int size)
+    // {
+    //     SIZE = size;
+    //     printf("Size: %d\n", SIZE);
+    // }
 
     // Returns the array of accelerations with the highest values
     float *get_highest_acc(float *x_dir, float *y_dir, float *z_dir)
@@ -41,18 +43,53 @@ public:
 
         // Compare counts from the arrays
         if (x >= y && x >= z)
+        {
+            printf("X\n");
             return x_dir;
+        }
+
         else if (y >= z)
+        {
+            printf("Y\n");
             return y_dir;
+        }
+
+        printf("Z\n");
         return z_dir;
+    }
+
+    float *get_magnitude(float *x_dir, float *y_dir, float *z_dir) // vektor dolzine Size za magnitude, neodvisno od rotacije
+    {
+        // returns smooteth/filtered magnitudes of x,y,z accerelations, using avrage filter
+        float *mag = (float *)malloc(SIZE * sizeof(float));
+        if (mag == NULL)
+        {
+            printf("MEMORY ERROR MAGNITUDE\n"); // Handle memory allocation error
+            // ...
+        }
+        // printf("size is: %d values x: %f y: %f z: %f  \n", SIZE, x_dir[49], y_dir[49], z_dir[49]);
+        for (int i = 0; i < SIZE; i++)
+        {
+            mag[i] = sqrt(x_dir[i] * x_dir[i] + y_dir[i] * y_dir[i] + z_dir[i] * z_dir[i]);
+            // printf("%f ", mag[i]);
+        }
+
+        float *smooth = smooth_data(mag);
+        // printf("%f\n", mag[0]);
+        free(mag);
+
+        return smooth;
     }
 
     uint8_t calc_steps(float *data, uint16_t time_old)
     {
         uint8_t steps = 0;
+        uint8_t fake_steps = 0;
+
         // Serial.println("Func call");
         //  float *averaged_sdata = smoothen_signal(data);
         float treshold = dynamic_treshold(data);
+        // printf("THRESHOLD: %f ------", treshold);
         uint16_t time_new = 0;
 
         for (int i = 0; i < SIZE - 1; i++)
@@ -60,19 +97,26 @@ public:
             float sample_old = data[i];
             float sample_new = data[i + 1];
 
-            // Add a step when the new data is smaller than old and compared to treshold
-            if (sample_new < sample_old && treshold < sample_old && sample_new < treshold)
-            {
-                uint16_t time_temp = i * time_old - time_new;
-                // Serial.println("step");
-                steps++;
-                if (time_new > 200)
-                { // TO -DO NAPAKA PRI ZAZNAVI ZARADI OKEN UPOŠTEVAJ |----.|.----| KJER JE | OKNO, . KORAK, - NIC
+            // printf("%d | %f | %f\n", i, sample_old, sample_new);
 
+            // Add a step when the new data is smaller than old and compared to treshold
+            if ((sample_new < sample_old) && (treshold < sample_old) && (sample_new < treshold))
+            {
+                uint16_t time_temp = (uint16_t)i * time_old - time_new;
+
+                // Serial.println("step");
+                if (time_temp > 400)
+                { // TO -DO NAPAKA PRI ZAZNAVI ZARADI OKEN UPOŠTEVAJ |----.|.----| KJER JE | OKNO, . KORAK, - NIC
+                    steps++;
+                    // printf("%d | %d\n", time_temp, time_new);
                     time_new = time_temp;
                 }
+                else
+                    fake_steps++;
             }
         }
+        printf("The number of steps: %d\n", steps);
+        printf("The number of fake steps: %d\n", fake_steps);
 
         return steps;
     }
@@ -124,23 +168,20 @@ private:
 
         return average;
     }
+
     float dynamic_treshold_MIN_MAX(float *averaged_data)
     {
         float treshold;
-
         float min = FLT_MAX;
         float max = FLT_MIN;
+
         for (int i = 0; i < SIZE; i++)
         {
-
             if (averaged_data[i] < min)
-            {
                 min = averaged_data[i];
-            }
+
             if (averaged_data[i] > max)
-            {
                 max = averaged_data[i];
-            }
         }
         float average = (min + max) / 2;
 
@@ -149,13 +190,13 @@ private:
 
     float *smooth_data(float *data)
     {
-        // Upoštevaj manjšo velikost od SIZE !!!!!!!
-        float averaged_data[SIZE - 2];
-        int size = SIZE - 2; // sizeof(averaged_data);
+        // float averaged_data[SIZE];
+        float *averaged_data = (float *)malloc(SIZE * sizeof(float));
+        // padding na zacetku in koncu, da ohranimo dolzino signala
+        averaged_data[0] = (data[0] + data[1]) / 2;
+        averaged_data[SIZE - 1] = (data[SIZE - 2] + data[SIZE - 1]) / 2;
 
-        averaged_data[0] = (data[0] + data[1]) / 2; // padding na zacetku in koncu, da ohranimo dolzino signala
-        averaged_data[0] = (data[SIZE - 2] + data[SIZE - 1]) / 2;
-        for (int i = 1; i < size - 1; i++)
+        for (int i = 1; i < SIZE - 2; i++)
         {
             averaged_data[i] = (data[i - 1] + data[i] + data[i + 1]) / 3; // filter signala - povprečje prejsnje, zdasnje naslednj
         }
