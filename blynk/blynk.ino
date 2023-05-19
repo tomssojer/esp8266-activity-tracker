@@ -1,12 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
-
-#define BLYNK_TEMPLATE_ID ""
-#define BLYNK_TEMPLATE_NAME ""
-#define BLYNK_AUTH_TOKEN ""
-
-char ssid[] = "";
-char pass[] = "";
+#include "password.h"
 
 BlynkTimer timer;
 
@@ -27,7 +21,7 @@ void setup()
 {
     Serial.begin(115200);
 
-    Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+    Blynk.begin(BLYNK_AUTH_TOKEN, SSID, PASSWORD);
 
     timer.setInterval(1000L, send);
 }
