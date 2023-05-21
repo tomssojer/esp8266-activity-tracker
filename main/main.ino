@@ -203,8 +203,8 @@ void readACC()
     //POSTOPEK 3 Z ODVODI
     float *magnitude = eq.get_magnitude(x_acc_array, y_acc_array, z_acc_array); // returnes smooteth magnitudes
     uint8_t steps = eq.calc_steps_deriv(magnitude, TIME_STEP);
-
-    free(magnitude);
+    
+    free(magnitude); // pri postopku 1 zakomentiraj
 
     // Napolni podatki za posiljanje
     totalSteps += steps;
