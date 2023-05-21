@@ -57,7 +57,7 @@ public:
             mag[i] = sqrt(x_dir[i] * x_dir[i] + y_dir[i] * y_dir[i] + z_dir[i] * z_dir[i]);
             // printf("%f ", mag[i]);
         }
-        float *smooth = low_pass_filter(mag,2);
+        float *smooth = low_pass_filter(mag,WINDOWS_SIZE);
         //float *smooth = smooth_data(mag); // za classic uporabi kar to ali zgornjo z 2
         free(mag);
         return smooth;
@@ -110,7 +110,7 @@ public:
         {
           float currentDerivative = data[i] - data[i - 1];
             // Add a step when the new data is smaller than old and compared to treshold, ta je fiksen, na 1 decimalko da se izloci sum
-            if (((currentDerivative > 0 && prevDerivative < 0) || (currentDerivative < 0 && prevDerivative > 0)) && fabs(currentDerivative)>0.1)
+            if (((currentDerivative > 0 && prevDerivative < 0) || (currentDerivative < 0 && prevDerivative > 0)) && fabs(currentDerivative)>DERIVATIVE_TRESHOLD)
             {
                 uint16_t time_temp = (uint16_t)i * time_old - time_new;
                 if (time_temp > MIN_TIME_STEP)
@@ -237,7 +237,6 @@ private:
                 }
             }
             output[i] = sum / count;
-            //printf("Povp_ %f \n",output[i]);
         }
         return output;
     }

@@ -17,8 +17,14 @@
 // Časovni korak beleženja v ms
 #define TIME_STEP 40
 
+//Prag pri računanju korakov z odvodi, da se izognemo false positives
+#define DERIVATIVE_TRESHOLD 0.1f
+
 // Število beleženj preden se podatki pošljejo na Blynk
 #define SIZE 50
+
+//širina okna za filter
+#define WINDOWS_SIZE 2
 
 // Spodnja meja beleženja v ms
 #define MIN_TIME_STEP 200
