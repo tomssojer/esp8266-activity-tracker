@@ -1,12 +1,11 @@
 #include <Wire.h>
 #include <Ticker.h>
+#include "equation.h"
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
-#include "equation.h"
 #include "password.h"
-#include "constants.h"
 
-// <-------------------- Začetek I2C funkcije -------------------------->
+// <-------------------- I2C  funkciji zacetek -------------------------->
 void I2CWriteRegister(uint8_t I2CDevice, uint8_t RegAdress, uint8_t Value)
 {
   // I2CDevice - Naslov I2C naprave
@@ -39,23 +38,41 @@ void I2CReadRegister(uint8_t I2CDevice, uint8_t RegAdress, uint8_t NBytes, uint8
     // uint32_t vrednost = Wire.read();
   }
 }
-// <-------------------- Konec I2C funkcije -------------------------->
 
-// <--------------------- Začetek definicij ------------------------->
+// <-------------------- I2C  Funkcije konec -------------------------->
 
-// Naslov LED diod
-uint8_t LED_niz[4] = {0xfe, 0xfd, 0xfb, 0xf7};
+#define PIN_LED 2
+// Naslov MPU9250 na I2C vodilu
+#define MPU_ADD 104
+// Naslov registra za pospesek
+#define ACC_MEAS_REG 59
+#define delilnik 16384.0f
+
+// Stevilo uzorcev za kalibracijo
+#define CAL_NO 5.0f
+
+// Total array length
+#define TOTAL_COUNT 50
+// CASOVNI KORAK BELEZENJA
+#define TIME_STEP 40
+
+#define I2C_ADD_IO1 32
+
+uint8_t LED_niz[4] = {0xfe, 0xfd, 0xfb, 0xf7}; // led diode
 uint8_t LED_niz1[2] = {0xfe, 0xff};
 
+// Count to 50, then reset
 uint8_t write_count = 0;
 uint16_t totalSteps = 0;
-float speed = 0;
-float distance = 0;
-float calories = 0;
-char *type;
-float x_acc_array[SIZE];
-float y_acc_array[SIZE];
-float z_acc_array[SIZE];
+float x_acc_array[TOTAL_COUNT];
+float y_acc_array[TOTAL_COUNT];
+float z_acc_array[TOTAL_COUNT];
+
+BlynkTimer timer;
+Ticker tick, tickLED, readSensor;
+Equation eq;
+// Globalni stevec zanke
+uint8_t iter = 0;
 
 // Meritve iz senzorja
 uint8_t accMeas[] = {0, 0, 0, 0, 0, 0};
@@ -64,23 +81,22 @@ uint8_t accMeas[] = {0, 0, 0, 0, 0, 0};
 float accX_off = 0;
 float accY_off = 0;
 float accZ_off = 0;
-
-// Meritve pospeška
+// Meritve  acc
 float accX = 0;
 float accY = 0;
 float accZ = 0;
 
-// Klici knjižnic
-BlynkTimer timer;
-Ticker tick, tickLED, readSensor;
-Equation eq;
-
-// <--------------------- Konec definicij ------------------------->
-
 void MPU9250_init()
 {
   // Resetiraj MPU9250 senzor => Register PWR_MGMT_1 (107)
-  I2CWriteRegister(MPU_ADD, 107, 128);
+  I2CWriteRegister(MPU_ADD, 107, 128); // 128 = 1000 0000
+  // Pocakaj
+  delay(500);
+  uint8_t ID;
+  I2CReadRegister(MPU_ADD, 117, 1, &ID);
+  Serial.println("ID:");
+  Serial.println(ID, HEX);
+  // 4 in 3 bit dolocata obseg
   I2CWriteRegister(MPU_ADD, 27, 0); //
   delay(100);
   I2CWriteRegister(MPU_ADD, 28, 0); //
@@ -95,7 +111,6 @@ void utripLED()
   Wire.write(LED_niz[LED_stanje]);
   Wire.endTransmission();
 }
-
 void utripLED1()
 {
   static uint8_t LED_stanje = 0;
@@ -119,7 +134,7 @@ void calibrateACC()
     Wire.write(ACC_MEAS_REG);
     Wire.endTransmission();
 
-    // Branje pospeškometra
+    //** Branje: pospeškometera
     Wire.requestFrom(MPU_ADD, 6);
     table = (int8_t)Wire.read();
     table = table << 8;
@@ -136,29 +151,35 @@ void calibrateACC()
 
     delay(1000 / CAL_NO);
   }
+  Serial.println("\n Konec kalibracije");
 
   accX_off /= CAL_NO;
   accY_off /= CAL_NO;
   accZ_off /= CAL_NO;
 
-  Serial.println("\n Konec kalibracije");
+  Serial.println("pospeskomer v X osi");
+  Serial.println(accX_off);
+  Serial.println("pospeskomer v Y osi");
+  Serial.println(accY_off);
+  Serial.println("pospeskomer v Z osi");
+  Serial.println(accZ_off);
 }
-
-// Branje pospeška
 void readACC()
 {
   static uint32_t count = 0;
   digitalWrite(PIN_LED, 0);
-  int32_t table = 0;
+  int32_t table = 0; // mogoce pusti brez
 
-  // MPU-9250
+  //**** MPU-9250
+  //**** Naslov registra
+  // "zapiši", od katerega naslova registra dalje želimo brati
   Wire.beginTransmission(MPU_ADD);
   Wire.write(ACC_MEAS_REG);
   Wire.endTransmission();
 
-  // Branje: pospešek v x_osi
-  // Zdaj mikrokrmilnik bere od naslova ACC_X_OUT
-  // Bere dva bajta prvi bajt:
+  //** Branje: pospešek v x_osi
+  //** Zdaj mikrokrmilnik bere od naslova ACC_X_OUT
+  //** Bere dva bajta prvi bajt:
   Wire.requestFrom(MPU_ADD, 6);
   table = (int8_t)Wire.read();
   table = table << 8;
@@ -176,30 +197,26 @@ void readACC()
   accZ = ((table / delilnik) - accZ_off);
 
   /*
-    Klici metod iz equation.h
+
+    Kliči funkcije iz equation.h
+
   */
-  if (write_count == SIZE)
+
+  if (write_count == TOTAL_COUNT)
   {
-    // float *highest_acc = eq.get_highest_acc(x_acc_array, y_acc_array, z_acc_array);
-    // Izračunaj magnitudo pospeškov
-    float *magnitude = eq.get_magnitude(x_acc_array, y_acc_array, z_acc_array);
+    // Obdelaj podatke
+    //float *highest_acc = eq.get_highest_acc(x_acc_array, y_acc_array, z_acc_array);
+    float *magnitude = eq.get_magnitude(x_acc_array, y_acc_array, z_acc_array); // returnes smooteth magnitudes
 
-    // Določi število korakov, dodaj v skupni števec
-    uint8_t steps = eq.calc_steps(magnitude, TIME_STEP);
+    //uint8_t steps = eq.calc_steps(magnitude, TIME_STEP);
+    uint8_t steps = eq.calc_steps_deriv(magnitude, TIME_STEP);
     totalSteps += steps;
-
-    // Določi še ostale vrednosti
-    speed = eq.calc_speed(steps);
-    distance += eq.calc_distance(steps);
-    calories += eq.calc_calories(speed);
-    type = eq.infer_movement_type(steps);
-
-    Serial.println("........");
+    float avg_speed = eq.calc_speed(steps);
+    // Serial.println(avg_speed);
+    Serial.println("....................................................");
     Serial.println(totalSteps);
 
-    // Resetiraj
     write_count = 0;
-
     // Izpišemo
     Serial.print("ACC_X: X= ");
     Serial.print(accX * 9.81);
@@ -211,31 +228,36 @@ void readACC()
     Serial.print(accZ * 9.81);
     Serial.println("\n");
 
-    free(magnitude);
+    // resetiramo vrednost
+    // accX = 0;
+    // accY = 0;
+    // accZ = 0;
+    // free(magnitude);
   }
-
   // Dodaj trenutni count v array
   x_acc_array[write_count] = accX;
   y_acc_array[write_count] = accY;
   z_acc_array[write_count] = accZ;
-
-  // Povečaj števec
+  // števec
   write_count++;
   digitalWrite(PIN_LED, 1);
 }
 
-// Send to Blynk - steps, distance, calories, type and speed
 void send()
 {
+  float razdalja = 10;
+  float kalorije = 1000;
+  char Tip[] = "Hoja";
+
   Blynk.virtualWrite(V0, totalSteps);
-  Blynk.virtualWrite(V1, distance);
-  Blynk.virtualWrite(V2, calories);
-  Blynk.virtualWrite(V3, type);
-  Blynk.virtualWrite(V4, 3.6 * speed);
+  Blynk.virtualWrite(V1, razdalja);
+  Blynk.virtualWrite(V2, kalorije);
+  Blynk.virtualWrite(V3, Tip);
 }
 
 void setup()
 {
+  Serial.println("Zacetek");
   // Serijska komunikacija
   Serial.begin(115200);
 
@@ -244,18 +266,20 @@ void setup()
   // SDA - 12 pin
   // SCL - 14 pin
   Wire.setClock(100000);
+  // Podesavanje senzorja
+  // https://github.com/bolderflight/mpu9250/blob/main/src/mpu9250.cpp
   MPU9250_init();
 
   // Določi velikost arraya za interval pospeška pri korakih
-  // eq.setSize(SIZE);
+  // eq.setSize(TOTAL_COUNT);
 
   // Kalibracija
-  Serial.println("Kalibracijo pospeškometra začenjam čez 5 sec.");
+  Serial.println("Kalibracijo pospeskometra zacenjam cez 5 sec.");
   Serial.println("Prosim postavite napravo na ravnino in jo pustite na miru.");
   tickLED.attach_ms(1100, utripLED);
 
-  delay(500); // to do 5000
-  tickLED.detach();
+  delay(500);       // to do 5000
+  tickLED.detach(); // Izklopite Ticker
   tickLED.attach_ms(200, utripLED);
 
   calibrateACC();
@@ -265,6 +289,7 @@ void setup()
   tick.attach_ms(TIME_STEP, readACC);
 
   Blynk.begin(BLYNK_AUTH_TOKEN, SSID, PASSWORD);
+
   timer.setInterval(200L, send);
 }
 
