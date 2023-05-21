@@ -12,7 +12,7 @@
 #define delilnik 16384.0f
 
 // Število vzorcev za kalibracijo
-#define CAL_NO 100.0f
+#define CAL_NO 100
 
 // Časovni korak beleženja v ms
 #define TIME_STEP 40
