@@ -193,17 +193,19 @@ void readACC()
     // Obdelaj podatke
 
     // POSTOPEK 1  - vzemi najvecjo os in izracunaj korake z njo
-    //float *highest_acc = eq.get_highest_acc(x_acc_array, y_acc_array, z_acc_array);
-    //uint8_t steps = eq.calc_steps(magnitude, TIME_STEP);
-
+    //float *max_acc = eq.get_highest_acc(x_acc_array, y_acc_array, z_acc_array);
+    //uint8_t steps = eq.calc_steps(max_acc, TIME_STEP);
+    
     // POSTOPEK 2
-    float *magnitude = eq.get_magnitude(x_acc_array, y_acc_array, z_acc_array); // returnes smooteth magnitudes
-    uint8_t steps = eq.calc_steps(magnitude, TIME_STEP);
+    //float *magnitude = eq.get_magnitude(x_acc_array, y_acc_array, z_acc_array); // returnes smooteth magnitudes
+    //uint8_t steps = eq.calc_steps(magnitude, TIME_STEP);
     
     //POSTOPEK 3 Z ODVODI
-    //float *magnitude = eq.get_magnitude(x_acc_array, y_acc_array, z_acc_array); // returnes smooteth magnitudes
-    //uint8_t steps = eq.calc_steps_deriv(magnitude, TIME_STEP);
-    
+    float *magnitude = eq.get_magnitude(x_acc_array, y_acc_array, z_acc_array); // returnes smooteth magnitudes
+    uint8_t steps = eq.calc_steps_deriv(magnitude, TIME_STEP);
+
+    free(magnitude);
+
     // Napolni podatki za posiljanje
     totalSteps += steps;
     speed = eq.calc_speed(steps);
@@ -227,7 +229,7 @@ void readACC()
     Serial.print(accZ * 9.81);
     Serial.println("\n");
     write_count = 0;
-    free(magnitude);
+   
   }
   // Dodaj trenutni count v array
   x_acc_array[write_count] = accX;

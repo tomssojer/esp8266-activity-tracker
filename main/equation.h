@@ -10,9 +10,12 @@ class Equation
 public:
     uint16_t time_last = 0;
     // Returns the array of accelerations with the highest values
-    float *get_highest_acc(float *x_dir, float *y_dir, float *z_dir)
+   float *get_highest_acc(float *x_dir, float *y_dir, float *z_dir)
     {
-        int x, y, z;
+        int x=0;
+        int y=0;
+        int z=0;
+        
         for (int i = 0; i < SIZE; i++)
         {
             float x_abs = abs(x_dir[i]);
@@ -25,17 +28,20 @@ public:
                 y++;
             else
                 z++;
-        }
+        } 
+
         // Compare counts from the arrays
         if (x >= y && x >= z)
         {
-            return x_dir;
+            return smooth_data(x_dir);
         }
+
         else if (y >= z)
         {
-            return y_dir;
+            return smooth_data(y_dir);
         }
-        return z_dir;
+
+        return smooth_data(z_dir);
     }
 
     float *get_magnitude(float *x_dir, float *y_dir, float *z_dir) // vektor dolzine Size za magnitude, neodvisno od rotacije
